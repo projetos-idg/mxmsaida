@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saída do MXM: riscos e caminhos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: coluna única de leitura; resumo aberto no topo, detalhes recolhidos em blocos com "+" */
+:root{
+  --bg:#f3f5f6;
+  --surface:#ffffff;
+  --ink:#16212b;
+  --muted:#56636e;
+  --line:#d9dfe3;
+  --accent:#0d5f63;
+  --accent-soft:#e2eff0;
+  --high:#b42318; --high-bg:#fdecea;
+  --mid:#9a5b00;  --mid-bg:#fdf3e1;
+  --low:#2e6b3a;  --low-bg:#e7f3e9;
+  --font-display:"Newsreader",Georgia,"Times New Roman",serif;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11171c; --surface:#18212a; --ink:#e6ecef; --muted:#9aa8b2; --line:#2b3741;
+    --accent:#5cc3c0; --accent-soft:#16333a;
+    --high:#ff8a7a; --high-bg:#3a1d1a; --mid:#f2b14c; --mid-bg:#352813; --low:#7fcf8c; --low-bg:#183020;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11171c; --surface:#18212a; --ink:#e6ecef; --muted:#9aa8b2; --line:#2b3741;
+  --accent:#5cc3c0; --accent-soft:#16333a;
+  --high:#ff8a7a; --high-bg:#3a1d1a; --mid:#f2b14c; --mid-bg:#352813; --low:#7fcf8c; --low-bg:#183020;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6}
+.wrap{max-width:860px;margin:0 auto;padding:40px 20px 72px;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(1.9rem,4.5vw,2.6rem);font-weight:600}
+h2{font-size:1.35rem;font-weight:600}
+h3{font-size:1.05rem;font-family:var(--font-body);font-weight:600}
+p{margin:0}
+.lede{color:var(--muted);max-width:65ch}
+.meta{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 16px}
+header{display:flex;flex-direction:column;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:20px}
+.eyebrow{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.fact{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.fact b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+.fact span{font-size:.82rem;color:var(--muted)}
+
+.summary{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.summary ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.toolbar p{font-size:.85rem;color:var(--muted)}
+button{font:inherit;font-size:.85rem;font-weight:500;color:var(--accent);background:var(--accent-soft);border:1px solid transparent;border-radius:6px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.sections{display:flex;flex-direction:column;gap:10px}
+details.sec{background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.sec>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:14px;padding:16px 18px}
+details>summary::-webkit-details-marker{display:none}
+.num{font-family:var(--font-display);font-size:.95rem;color:var(--muted);min-width:1.6em;font-variant-numeric:tabular-nums}
+.st{flex:1;display:flex;flex-direction:column;gap:2px}
+.st small{font-size:.83rem;color:var(--muted);font-family:var(--font-body);font-weight:400}
+.plus{width:28px;height:28px;flex:none;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;color:var(--accent);font-size:1.2rem;line-height:1;transition:transform .2s}
+.plus::before{content:"+"}
+details[open]>summary .plus::before{content:"−"}
+details[open]>summary .plus{background:var(--accent-soft);border-color:var(--accent)}
+.body{padding:0 18px 20px 60px;display:flex;flex-direction:column;gap:14px;max-width:calc(65ch + 80px)}
+.body ul,.body ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.note{font-size:.88rem;color:var(--muted);border-left:3px solid var(--line);padding-left:12px}
+
+.steps{display:grid;gap:10px}
+.step{border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.step .who{font-size:.8rem;color:var(--muted)}
+
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:.88rem;min-width:560px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font-weight:600;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+
+.pill{display:inline-block;font-size:.72rem;font-weight:600;letter-spacing:.03em;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.p-high{color:var(--high);background:var(--high-bg)}
+.p-mid{color:var(--mid);background:var(--mid-bg)}
+.p-low{color:var(--low);background:var(--low-bg)}
+.p-ok{color:var(--low);background:var(--low-bg)}
+.p-no{color:var(--mid);background:var(--mid-bg)}
+.p-x{color:var(--high);background:var(--high-bg)}
+
+.risks{display:flex;flex-direction:column;gap:8px}
+details.risk{border:1px solid var(--line);border-radius:6px;border-left-width:4px}
+details.risk.h{border-left-color:var(--high)}
+details.risk.m{border-left-color:var(--mid)}
+details.risk.l{border-left-color:var(--low)}
+details.risk>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 12px}
+details.risk>summary .rt{flex:1;font-weight:500}
+details.risk .plus{width:24px;height:24px;font-size:1rem}
+.rbody{padding:0 14px 14px;display:grid;gap:10px}
+.rbody h4{margin:0;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.rbody .fix{background:var(--accent-soft);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.rbody .fix ul{margin:0;padding-left:18px}
+
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.card{border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.card ul{margin:0;padding-left:18px;font-size:.92rem}
+.lbl{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+
+.timeline{display:flex;flex-direction:column;gap:0;border-left:2px solid var(--accent);margin-left:6px}
+.tl{position:relative;padding:0 0 16px 20px;display:flex;flex-direction:column;gap:3px}
+.tl::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:2px solid var(--accent)}
+.tl .when{font-size:.8rem;font-weight:600;color:var(--accent)}
+footer{font-size:.8rem;color:var(--muted);border-top:1px solid var(--line);padding-top:16px}
+
+@media (max-width:560px){
+  .body{padding:0 16px 18px 16px}
+  details.sec>summary{padding:14px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---- Navegação entre as duas seções ---- */
+.topnav{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.topnav-in{max-width:1080px;margin:0 auto;padding:10px 20px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.topnav-in .brand{font-family:var(--font-display);font-weight:600;margin-right:auto}
+.tab{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.view[hidden]{display:none}
+/* ---- Mapa de riscos ---- */
+.map{max-width:1080px;margin:0 auto;padding:32px 20px 72px;display:flex;flex-direction:column;gap:24px}
+.map-head{display:flex;flex-direction:column;gap:10px;border-bottom:2px solid var(--ink);padding-bottom:18px}
+.tally{display:flex;gap:10px;flex-wrap:wrap}
+.tally div{display:flex;align-items:baseline;gap:8px;border-radius:8px;padding:8px 14px;font-weight:600}
+.tally b{font-size:1.6rem;font-family:var(--font-display);font-variant-numeric:tabular-nums}
+.t-h{background:var(--high-bg);color:var(--high)}
+.t-m{background:var(--mid-bg);color:var(--mid)}
+.t-l{background:var(--low-bg);color:var(--low)}
+.band{display:flex;flex-direction:column;gap:12px}
+.band-title{display:flex;align-items:center;gap:10px;font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;color:var(--muted)}
+.band-title::after{content:"";flex:1;height:1px;background:var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.tile{border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;min-height:250px;border:1px solid var(--line);border-top-width:8px;background:var(--surface)}
+.tile.h{border-top-color:var(--high)}
+.tile.m{border-top-color:var(--mid)}
+.tile.l{border-top-color:var(--low)}
+.tile-top{display:flex;justify-content:space-between;align-items:center}
+.tile-n{font-family:var(--font-display);font-size:2rem;line-height:1;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.tile h3{font-family:var(--font-display);font-size:1.2rem;font-weight:600;line-height:1.25}
+.tile p{font-size:.9rem;color:var(--muted)}
+.tile .act{margin-top:auto;background:var(--accent-soft);border-radius:8px;padding:10px 12px;font-size:.88rem;display:flex;flex-direction:column;gap:4px}
+.tile .act span{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--accent)}
+.map-foot{font-size:.85rem;color:var(--muted)}
+
+/* cartões e matriz pintados por inteiro */
+.tile{border:0;color:#1d1d1b}
+.tile.h{background:#f47f7f}
+.tile.m{background:#f7d165}
+.tile.l{background:#a7c98e}
+.tile .tile-n{color:rgba(0,0,0,.45)}
+.tile p{color:rgba(0,0,0,.72)}
+.tile h3{color:#1d1d1b}
+.lvl{font-size:.75rem;font-weight:600;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.55);color:#1d1d1b}
+.pi{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:rgba(0,0,0,.7)}
+.pi b{color:#1d1d1b}
+.tile .act{background:rgba(255,255,255,.55);color:#1d1d1b}
+.tile .act span{color:rgba(0,0,0,.6)}
+.mx-wrap{display:grid;grid-template-columns:28px 1fr;grid-template-rows:auto auto;gap:6px;max-width:640px}
+.mx-axis-y{writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mx-axis-x{grid-column:2;text-align:center;font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mx{display:grid;grid-template-columns:64px repeat(3,1fr);gap:0;border-radius:14px;overflow:hidden}
+.mx-c{min-height:96px;border:1px solid rgba(0,0,0,.25);padding:8px;display:flex;flex-direction:column;gap:6px;color:#1d1d1b}
+.mx-c.h{background:#f47f7f}.mx-c.m{background:#f7d165}.mx-c.l{background:#a7c98e}
+.mx-l{font-size:.72rem;color:rgba(0,0,0,.6)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{width:30px;height:30px;border-radius:50%;background:#fff;color:#1d1d1b;display:grid;place-items:center;font-weight:600;font-size:.85rem;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.mx-y,.mx-x{display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--muted);padding:6px;background:var(--bg)}
+@media (max-width:560px){.mx{grid-template-columns:52px repeat(3,1fr)}.mx-c{min-height:80px}}
+
+.why{background:rgba(255,255,255,.4);border-radius:8px;margin-top:auto}
+.why .act{margin-top:4px;background:rgba(255,255,255,.65)}
+.why>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;font-size:.82rem;color:rgba(0,0,0,.75)}
+.why>summary b{color:#1d1d1b}
+.why .plus{width:22px;height:22px;font-size:.95rem;border-color:rgba(0,0,0,.3);color:#1d1d1b;background:rgba(255,255,255,.6)}
+.why[open]>summary .plus{background:#fff;border-color:rgba(0,0,0,.4)}
+.why-b{padding:0 10px 10px;display:flex;flex-direction:column;gap:6px;font-size:.84rem;color:#1d1d1b}
+.tile .why-b p{color:#1d1d1b}
+
+.why-b ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
+.why-b .wh{margin:2px 0 0;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:rgba(0,0,0,.6);font-family:var(--font-body)}
+.rbody ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
+
+/* ---- Contrato ---- */
+.ct{max-width:1080px;margin:0 auto;padding:32px 20px 72px;display:flex;flex-direction:column;gap:24px}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.chart h2{font-size:1.1rem}
+.legend{display:flex;gap:14px;font-size:.8rem;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.br{display:grid;grid-template-columns:110px 1fr auto;gap:10px;align-items:center}
+.br-lab{display:flex;flex-direction:column;line-height:1.25}
+.br-lab b{font-size:.88rem;font-variant-numeric:tabular-nums}
+.br-lab span{font-size:.72rem;color:var(--muted)}
+.br-bar{display:flex;height:24px;background:var(--bg);border-radius:6px;overflow:hidden}
+.sb{display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:600;color:#fff;white-space:nowrap}
+.sb-f{background:var(--accent)}
+.sb-l{background:#7fb3b5}
+.sb-i{background:#c9a227}
+.sb-v{background:var(--accent);border-radius:0 6px 6px 0}
+.br-val{font-size:.85rem;font-weight:600;font-variant-numeric:tabular-nums;text-align:right;display:flex;flex-direction:column}
+.br-note{font-size:.7rem;font-weight:400;color:var(--muted)}
+.hint{font-size:.85rem;color:var(--muted)}
+.tline{display:flex;flex-direction:column;gap:8px;border-left:3px solid var(--accent);padding-left:14px;margin-left:6px}
+details.ev{background:var(--surface);border:1px solid var(--line);border-radius:10px;position:relative}
+details.ev::before{content:"";position:absolute;left:-23px;top:18px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:3px solid var(--accent)}
+details.ev>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:14px;padding:12px 14px}
+.ev-d{font-family:var(--font-display);font-weight:600;min-width:92px;font-variant-numeric:tabular-nums;color:var(--accent)}
+.ev-t{flex:1;display:flex;flex-direction:column}
+.ev-t small{color:var(--muted);font-size:.83rem}
+details.ev .plus{width:26px;height:26px}
+.ev-b{padding:0 16px 14px 120px}
+.ev-b ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:.92rem}
+.cls{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.cl{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:6px}
+.cl h3{font-family:var(--font-display);font-size:1.05rem;font-weight:600}
+.cl p{font-size:.88rem;color:var(--muted)}
+.cl span{margin-top:auto;font-size:.75rem;font-weight:600;color:var(--accent)}
+@media (max-width:560px){.ev-b{padding:0 14px 14px}.br{grid-template-columns:80px 1fr auto}.ev-d{min-width:78px}}
+</style>
+</head>
+<body>
+<nav class="topnav" aria-label="Seções"><div class="topnav-in">
+  <span class="brand">Saída do MXM</span>
+  <button type="button" class="tab" role="tab" id="tab-mapa" aria-controls="mapa" aria-selected="true">Mapa de riscos</button>
+  <button type="button" class="tab" role="tab" id="tab-relatorio" aria-controls="relatorio" aria-selected="false">Relatório da reunião</button>
+  <button type="button" class="tab" role="tab" id="tab-contrato" aria-controls="contrato" aria-selected="false">Contrato MXM</button>
+</div></nav>
+<div class="view" id="mapa">
+<section class="map" aria-label="Mapa de riscos">
+  <div class="map-head">
+    <span class="eyebrow">IDG · Comitê de Transição do ERP</span>
+    <h1>Mapa de riscos da saída do MXM</h1>
+    <p class="lede">Os riscos identificados na reunião de 12/11/2026, classificados por probabilidade e impacto, com a medida de contorno de cada um.</p>
+    <div class="tally"><div class="t-h"><b>5</b> Alta</div><div class="t-m"><b>4</b> Média</div><div class="t-l"><b>1</b> Baixa</div></div>
+  </div>
+  <div class="mx-wrap">
+    <div class="mx-axis-y">Impacto</div>
+    <div class="mx"><div class="mx-y">Alto</div><div class="mx-c m"><span class="mx-l">Média</span><div class="chips"></div></div><div class="mx-c h"><span class="mx-l">Alta</span><div class="chips"><span class="chip">1</span><span class="chip">2</span><span class="chip">3</span></div></div><div class="mx-c h"><span class="mx-l">Alta</span><div class="chips"></div></div><div class="mx-y">Médio</div><div class="mx-c l"><span class="mx-l">Baixa</span><div class="chips"></div></div><div class="mx-c m"><span class="mx-l">Média</span><div class="chips"><span class="chip">6</span><span class="chip">7</span><span class="chip">8</span><span class="chip">9</span></div></div><div class="mx-c h"><span class="mx-l">Alta</span><div class="chips"><span class="chip">4</span><span class="chip">5</span></div></div><div class="mx-y">Baixo</div><div class="mx-c l"><span class="mx-l">Baixa</span><div class="chips"></div></div><div class="mx-c l"><span class="mx-l">Baixa</span><div class="chips"><span class="chip">10</span></div></div><div class="mx-c m"><span class="mx-l">Média</span><div class="chips"></div></div><div></div><div class="mx-x">Baixa</div><div class="mx-x">Média</div><div class="mx-x">Alta</div></div>
+    <div class="mx-axis-x">Probabilidade</div>
+  </div>
+  <div class="band"><div class="band-title">Criticidade alta</div><div class="grid">
+<article class="tile h"><div class="tile-top"><span class="tile-n">1</span><span class="lvl">Alta</span></div><h3>Exportação ainda não confirmada pela MXM</h3><p>Ainda não se sabe o que a MXM consegue entregar. A TI acha que o banco não sai; a Keycorp acha que as tabelas saem. A MXM ainda não foi consultada.</p><details class="why"><summary><span>Probabilidade: <b>Média</b> · Impacto: <b>Alto</b></span><span class="plus" aria-hidden="true"></span></summary><div class="why-b"><h4 class="wh">O que foi dito na reunião</h4><ul><li><b>Luiz Lima (TI), ~00:02:</b> não é possível tirar uma cópia do banco, porque ele é um Oracle compartilhado por todos os clientes da MXM e o contrato só permite usar as telas do sistema. A MXM talvez exporte em TXT ou planilha, mas a TI não conhece a estrutura do sistema para trabalhar esses dados.</li><li><b>Leandro (Keycorp), ~00:13:</b> em nuvem, o banco costuma ser separado por cliente. Exportar em Excel, CSV ou TXT é viável e já foi feito com fornecedores, clientes e produtos. A tabela que liga os anexos aos lançamentos existe no MXM, segundo as pesquisas da Keycorp.</li><li><b>Encaminhamento, ~00:39:</b> perguntar à MXM como será a exportação.</li></ul><p><b>Por que probabilidade média:</b> A Keycorp já tirou cadastros do MXM em Excel, e a própria MXM prevê extração mediante proposta. É provável que algo saia; a dúvida é se inclui a tabela de indexação, os anexos e a tramitação.</p><p><b>Por que impacto alto:</b> Sem a exportação não existe Acervo MXM, e o IDG ficaria preso às licenças da MXM pelos 10 anos de guarda.</p><div class="act"><span>Medida de contorno</span><ul><li>Reunião imediata com a MXM para verificar o que pode ser exportado, em que formato e prazo.</li><li>Levar à reunião técnica a lista de tabelas necessárias, incluindo a de indexação dos anexos.</li><li>Testar a exportação com um exercício fechado antes de reduzir as licenças.</li></ul></div></div></details></article>
+<article class="tile h"><div class="tile-top"><span class="tile-n">2</span><span class="lvl">Alta</span></div><h3>Perda do histórico de tramitação</h3><p>O documento pode ser recuperado pelo Google Drive, mas o registro de quem tramitou o processo, quando, o texto digitado e a aprovação fica só no MXM.</p><details class="why"><summary><span>Probabilidade: <b>Média</b> · Impacto: <b>Alto</b></span><span class="plus" aria-hidden="true"></span></summary><div class="why-b"><h4 class="wh">O que foi dito na reunião</h4><ul><li><b>Marlis, ~00:38:</b> em São Paulo, viu o link do MXM que leva aos documentos guardados no Google Drive.</li><li>Ter o documento, porém, não dá acesso ao histórico dos trâmites: quando o processo tramitou, quem tramitou e qual texto foi digitado.</li><li>Também não se sabe quando ele foi aprovado. Tudo isso fica na base do MXM.</li></ul><p><b>Por que probabilidade média:</b> Nenhuma das soluções discutidas incluiu esse histórico. Ele depende de a MXM guardar os registros de forma exportável e aceitar entregá-los.</p><p><b>Por que impacto alto:</b> O histórico de tramitação comprova a regularidade de uma compra em diligências e no Tribunal de Contas, por até 10 anos.</p><div class="act"><span>Medida de contorno</span><ul><li>Incluir o histórico de tramitação na lista de dados pedidos à MXM.</li><li>Se ele não puder ser exportado, gerar relatórios de tramitação dos processos antes do fim das licenças.</li></ul></div></div></details></article>
+<article class="tile h"><div class="tile-top"><span class="tile-n">3</span><span class="lvl">Alta</span></div><h3>Direito ao backup ainda não formalizado</h3><p>O Jurídico entende que a MXM é obrigada a entregar um backup de todos os dados do IDG, mas ainda não se sabe o que entra nele, em que formato e em que prazo.</p><details class="why"><summary><span>Probabilidade: <b>Média</b> · Impacto: <b>Alto</b></span><span class="plus" aria-hidden="true"></span></summary><div class="why-b"><h4 class="wh">O que foi dito na reunião</h4><ul><li><b>Marlis, relatando a Clara (Jurídico), ~00:10:</b> a MXM tem obrigação contratual de entregar o backup de tudo o que o IDG tem no sistema, de todo o período.</li><li>Para continuar consultando documentos pelo próprio MXM, o IDG precisa manter licenças. A orientação do Jurídico é tratar a saída como redução de licenças, não como rompimento.</li><li><b>Leandro (Keycorp), ~00:14:</b> se isso estiver previsto em contrato e analisado pelo Jurídico, fortalece o argumento do IDG.</li></ul><p><b>Por que probabilidade média:</b> A obrigação foi afirmada, mas a cláusula não foi indicada na reunião. A MXM pode contestar o escopo (por exemplo, excluir os anexos) ou cobrar pela entrega.</p><p><b>Por que impacto alto:</b> É o principal argumento para obter os dados sem custo extra e com prazo. Sem ele, a negociação parte do zero.</p><div class="act"><span>Medida de contorno</span><ul><li>O Jurídico indica a cláusula contratual que sustenta o backup.</li><li>Formalizar com a MXM, em aditivo ou ata, o escopo (dados e anexos), o formato e o prazo de entrega.</li></ul></div></div></details></article>
+<article class="tile h"><div class="tile-top"><span class="tile-n">4</span><span class="lvl">Alta</span></div><h3>Acervo MXM sem escopo, prazo nem orçamento</h3><p>O acesso ao histórico por 10 anos depende do Acervo MXM, que ainda não tem escopo, contrato nem orçamento. Se ele atrasar, as licenças da MXM precisam ser prorrogadas.</p><details class="why"><summary><span>Probabilidade: <b>Alta</b> · Impacto: <b>Médio</b></span><span class="plus" aria-hidden="true"></span></summary><div class="why-b"><h4 class="wh">O que foi dito na reunião</h4><ul><li><b>Nicole, ~00:05:</b> o IDG precisa acessar o histórico por até 10 anos, para prestações de contas e diligências. Na troca do Semiflex para o MXM, o IDG ficou sem acesso adequado aos documentos antigos.</li><li><b>Leandro (Keycorp), ~00:16 a 00:22:</b> o MXM só deve ser desligado quando houver no Protheus um Acervo MXM ligando cada lançamento ao seu documento. Ele estima de 6 meses a 1 ano, sem ter conversado ainda com a MXM.</li><li><b>Leandro, ~00:35:</b> a migração de dados está no contrato atual, mas o Acervo MXM ainda precisa de escopo e proposta. <b>Sergio:</b> haverá custo com as licenças e com esse trabalho.</li></ul><p><b>Por que probabilidade alta:</b> Ainda não há escopo, contrato nem orçamento. A estimativa foi feita sem informações da MXM, e a Keycorp estará concentrada na implantação até a virada.</p><p><b>Por que impacto médio:</b> O atraso pode ser contornado prorrogando as licenças, mas com custo e mais tempo de dependência da MXM.</p><div class="act"><span>Medida de contorno</span><ul><li>Contratar escopo, prazo e orçamento do Acervo MXM logo após a reunião técnica com a MXM.</li><li>Vincular o fim das licenças reduzidas à entrega validada do Acervo, e não a uma data fixa.</li></ul></div></div></details></article>
+<article class="tile h"><div class="tile-top"><span class="tile-n">5</span><span class="lvl">Alta</span></div><h3>Regras contábeis indefinidas na virada</h3><p>As regras que tiram do solicitante a escolha da conta contábil e que classificam ativos e obras ainda estão em definição, a poucas semanas da virada.</p><details class="why"><summary><span>Probabilidade: <b>Alta</b> · Impacto: <b>Médio</b></span><span class="plus" aria-hidden="true"></span></summary><div class="why-b"><h4 class="wh">O que foi dito na reunião</h4><ul><li><b>Claire, ~00:48 a 01:24:</b> hoje, antes de registrar uma requisição no MXM, a área de projetos consulta Contabilidade, Orçamento e Recursos Incentivados por uma planilha paralela, porque o solicitante não sabe qual conta usar. No primeiro treinamento, ela não viu essa rotina mudar no Protheus.</li><li>Ela citou também ativos montados a partir de várias peças, que geram reclassificações e reuniões, e obras pagas por medição, que a Contabilidade ajustava manualmente todo mês.</li><li><b>Leandro (Keycorp), ~00:50:</b> as regras estão sendo definidas com a Contabilidade (Lucas, Ana Maia e Henrique), possivelmente a partir da natureza financeira. A classificação de ativos e benfeitorias passa a ser feita pela classificação fiscal e contábil (TES).</li><li><b>Treinamentos:</b> terminam em 25/11. O encontro com todo o IDG sobre o novo modelo só acontece depois deles.</li></ul><p><b>Por que probabilidade alta:</b> As regras ainda estão em conversa com a Contabilidade, os treinamentos terminam em 25/11 e a virada é em cerca de sete semanas.</p><p><b>Por que impacto médio:</b> O sistema funciona, mas com planilhas paralelas, reclassificações e retrabalho, o que reduz a adesão ao Protheus desde o início.</p><div class="act"><span>Medida de contorno</span><ul><li>Fechar com a Contabilidade o de-para de contas e a parametrização das TES antes da virada.</li><li>Tratar o relatório da Claire durante a operação assistida.</li><li>Antecipar o encontro com o IDG sobre o novo modelo contábil e orçamentário.</li></ul></div></div></details></article>
+</div></div>
+  <div class="band"><div class="band-title">Criticidade média</div><div class="grid">
+<article class="tile m"><div class="tile-top"><span class="tile-n">6</span><span class="lvl">Média</span></div><h3>Referências perdidas na migração de compras</h3><p>Quando o histórico de compras migrar para o Protheus, os pedidos antigos vão apontar para fornecedores que foram unificados no saneamento (de mais de 6.000 para cerca de 2.000).</p><details class="why"><summary><span>Probabilidade: <b>Média</b> · Impacto: <b>Médio</b></span><span class="plus" aria-hidden="true"></span></summary><div class="why-b"><h4 class="wh">O que foi dito na reunião</h4><ul><li><b>Marlis, ~00:09:</b> trazer compras na virada seria inviável, porque geraria tabelas sem continuidade no Protheus.</li><li><b>Leandro (Keycorp), ~00:28:</b> a base de fornecedores do MXM tinha mais de 6.000 cadastros, com o mesmo fornecedor repetido quatro ou cinco vezes, e foi saneada para cerca de 2.000. Trazer todos os pedidos faria perder parte dessas referências, e o mesmo acontece em outros cadastros.</li><li><b>Planejamento:</b> na virada, só financeiro e contabilidade vão para o Protheus. O histórico de compras migra cerca de seis meses depois.</li></ul><p><b>Por que probabilidade média:</b> O saneamento já foi feito e a Keycorp conhece o problema. O risco depende de a correspondência entre fornecedor antigo e novo ter sido guardada.</p><p><b>Por que impacto médio:</b> Pedidos ligados ao fornecedor errado dificultam consultas e rastreamento, mas não impedem a operação.</p><div class="act"><span>Medida de contorno</span><ul><li>Guardar a tabela de correspondência entre fornecedor antigo e fornecedor saneado.</li><li>Validar uma amostra de pedidos migrados contra o MXM antes de desligá-lo.</li></ul></div></div></details></article>
+<article class="tile m"><div class="tile-top"><span class="tile-n">7</span><span class="lvl">Média</span></div><h3>Ir à MXM sem o número de licenças definido</h3><p>A MXM vai perguntar de quanto será a redução, e o IDG ainda não sabe ao certo quantas licenças tem hoje nem quantas, e de que tipo, vai manter.</p><details class="why"><summary><span>Probabilidade: <b>Média</b> · Impacto: <b>Médio</b></span><span class="plus" aria-hidden="true"></span></summary><div class="why-b"><h4 class="wh">O que foi dito na reunião</h4><ul><li><b>Luiz Lima (TI), ~00:04:</b> sugeriu manter algo como 5 licenças Full e 10 a 15 Lite.</li><li><b>Luiz Fernando, ~00:33:</b> pelo levantamento dele, seriam cerca de 30 licenças, todas Full, porque o perfil Lite não permite visualizar o sistema de forma ampla.</li><li><b>Total atual:</b> foram citados 186 e 172. A divisão entre Full e Lite precisa ser levantada.</li><li><b>Sala, ~00:32:</b> na primeira reunião, a MXM vai querer saber quanto deixa de faturar, então o IDG precisa chegar com o número.</li></ul><p><b>Por que probabilidade média:</b> Há um levantamento pronto e uma semana até a reunião. Falta consolidar os números e escolher entre as duas propostas.</p><p><b>Por que impacto médio:</b> Negociar sem um número enfraquece a posição do IDG e pode fixar um perfil que não serve para consulta, ou um custo maior.</p><div class="act"><span>Medida de contorno</span><ul><li>Consolidar o levantamento do Luiz Fernando com a divisão atual entre Full e Lite.</li><li>Decidir o perfil e a quantidade antes da reunião com a MXM.</li></ul></div></div></details></article>
+<article class="tile m"><div class="tile-top"><span class="tile-n">8</span><span class="lvl">Média</span></div><h3>Colaboração da MXM na saída</h3><p>A MXM soube da troca pelo mercado, e um fornecedor que perde receita tende a atender pior justamente quando o IDG mais precisa dele.</p><details class="why"><summary><span>Probabilidade: <b>Média</b> · Impacto: <b>Médio</b></span><span class="plus" aria-hidden="true"></span></summary><div class="why-b"><h4 class="wh">O que foi dito na reunião</h4><ul><li><b>Marlis, ~00:07:</b> a MXM soube pelo mercado que o IDG estava trocando de sistema. Depois de ser comprada por um grupo internacional, vê o IDG como possível cliente para outros produtos.</li><li><b>Marlis, ~00:24:</b> o IDG não avisou antes por estratégia: quando o fornecedor sabe que vai perder o cliente, o atendimento costuma piorar.</li><li><b>Felipe, ~00:23:</b> uma relação mais próxima com a MXM pode acelerar a transição.</li></ul><p><b>Por que probabilidade média:</b> A MXM já sabe da troca, mas tem interesse comercial em continuar com o IDG, que seguirá cliente com licenças reduzidas.</p><p><b>Por que impacto médio:</b> A falta de colaboração atrasaria a exportação e aumentaria os custos. O contrato e a orientação do Jurídico dão alguma proteção.</p><div class="act"><span>Medida de contorno</span><ul><li>Primeira conversa de relacionamento com o Thiago, sem detalhes técnicos.</li><li>Tratar a saída como redução de licenças, conforme orientação do Jurídico.</li><li>Usar o interesse da MXM em outros produtos como ponto de negociação.</li></ul></div></div></details></article>
+<article class="tile m"><div class="tile-top"><span class="tile-n">9</span><span class="lvl">Média</span></div><h3>Pouca visibilidade do cronograma</h3><p>O cronograma da implantação, pedido pelo Diretor-Geral, não pôde ser apresentado na reunião: o da Keycorp muda quase toda semana e não há acompanhamento interno.</p><details class="why"><summary><span>Probabilidade: <b>Média</b> · Impacto: <b>Médio</b></span><span class="plus" aria-hidden="true"></span></summary><div class="why-b"><h4 class="wh">O que foi dito na reunião</h4><ul><li><b>Sergio, ~00:40:</b> o Diretor-Geral pediu o cronograma da migração, mas não havia um documento interno de acompanhamento para mostrar.</li><li><b>Leandro (Keycorp), ~00:41:</b> o cronograma existe, mas é atualizado quase toda semana. Ele se comprometeu a enviá-lo atualizado na segunda-feira e a preparar uma apresentação para o COMEX.</li><li><b>Sala, ~00:44:</b> se o sistema não entrar em 1º de janeiro, o IDG fica sem sistema.</li></ul><p><b>Por que probabilidade média:</b> O cronograma existe na Keycorp, mas muda quase toda semana. O acompanhamento semanal pelo comitê começa agora.</p><p><b>Por que impacto médio:</b> Problemas apareceriam tarde, com menos tempo para reagir antes da virada.</p><div class="act"><span>Medida de contorno</span><ul><li>Receber o cronograma atualizado da Keycorp na segunda-feira, 16/11.</li><li>Acompanhar marcos e gargalos toda quinta no comitê.</li></ul></div></div></details></article>
+</div></div>
+  <div class="band"><div class="band-title">Criticidade baixa</div><div class="grid">
+<article class="tile l"><div class="tile-top"><span class="tile-n">10</span><span class="lvl">Baixa</span></div><h3>Preço unitário maior com a redução</h3><p>Com menos licenças, o IDG pode perder o desconto por volume e pagar mais por licença, embora o gasto total caia.</p><details class="why"><summary><span>Probabilidade: <b>Média</b> · Impacto: <b>Baixo</b></span><span class="plus" aria-hidden="true"></span></summary><div class="why-b"><h4 class="wh">O que foi dito na reunião</h4><ul><li><b>Leandro (Keycorp), ~00:33:</b> o preço da MXM parece cair conforme aumenta o número de licenças. Reduzir o volume pode encarecer cada licença. A pergunta já está na lista que ele vai levar à MXM.</li></ul><p><b>Por que probabilidade média:</b> A Keycorp suspeita de desconto por volume, mas isso não foi confirmado com a MXM.</p><p><b>Por que impacto baixo:</b> Mesmo com preço unitário maior, o gasto total cai bastante, porque o número de licenças diminui muito.</p><div class="act"><span>Medida de contorno</span><ul><li>Pedir à MXM a tabela de preços por faixa de quantidade.</li><li>Incluir esse valor no custo da fase de transição.</li></ul></div></div></details></article>
+</div></div>
+  <p class="map-foot">Os números nos quadros da matriz correspondem aos cartões. O detalhamento de cada risco está no relatório da reunião, seção 04.</p>
+</section>
+</div>
+<div class="view" id="relatorio" hidden>
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">IDG · Comitê de Transição do ERP</span>
+  <h1>Saída do MXM: riscos e caminhos</h1>
+  <p class="lede">O que foi discutido na reunião de 12 de novembro de 2026 sobre a saída do MXM-WebManager e a entrada do TOTVS Protheus: os riscos apontados pela TI, as respostas da equipe e da consultoria, as ponderações da Claire e os encaminhamentos.</p>
+  <div class="meta"><span>Reunião de 12/11/2026</span><span>Base: transcrição da reunião</span><span>Comitê semanal: quintas, 11h</span></div>
+</header>
+
+<section class="facts" aria-label="Números citados na reunião">
+  <div class="fact"><b>01/01/2027</b><span>virada para o Protheus</span></div>
+  <div class="fact"><b>186</b><span>licenças MXM hoje (número a confirmar)</span></div>
+  <div class="fact"><b>~30</b><span>licenças Full no levantamento de redução</span></div>
+  <div class="fact"><b>6 a 12 meses</b><span>estimativa para o Acervo MXM no Protheus</span></div>
+</section>
+
+<section class="summary" aria-label="Resumo">
+  <h2>Em resumo</h2>
+  <ul>
+    <li>A TI confirmou que não é possível obter uma cópia integral do banco, que é compartilhado entre os clientes da MXM. A consultoria (Keycorp) afirmou que exportar as tabelas em Excel, CSV ou TXT é viável e já foi feito para cadastros.</li>
+    <li>O ponto mais sensível são os <strong>documentos anexados e o histórico de tramitação</strong>. Sem a tabela de indexação da MXM, os arquivos ficam soltos, sem ligação com os lançamentos.</li>
+    <li>O contrato com a MXM <strong>não será encerrado em janeiro</strong>: o caminho é reduzir as licenças. O Jurídico orientou tratar a mudança como redução, não como rompimento.</li>
+    <li>O desligamento total do MXM depende de um <strong>Acervo MXM dentro do Protheus</strong>. A estimativa é de 6 a 12 meses, e o escopo e o custo ainda não estão contratados.</li>
+  </ul>
+</section>
+
+<div class="toolbar">
+  <p>Toque no <strong>+</strong> para abrir cada seção.</p>
+  <button type="button" id="toggleAll" aria-pressed="false">Abrir tudo</button>
+</div>
+
+<div class="sections">
+
+<details class="sec" id="reuniao">
+  <summary><span class="num">01</span><span class="st"><h2>A reunião</h2><small>Contexto, pauta e participantes</small></span><span class="plus" aria-hidden="true"></span></summary>
+  <div class="body">
+    <p>A reunião atendeu a três pedidos do Diretor-Geral (Ricardo Piquet), feitos na véspera:</p>
+    <ol>
+      <li>Instituir um <strong>comitê de transição semanal</strong>, às quintas, 11h, dedicado só à migração.</li>
+      <li>Avaliar, ponto a ponto, os riscos levantados pela TI: se são riscos de fato e quais são as medidas de contorno.</li>
+      <li>Apresentar o cronograma da migração para os próximos meses.</li>
+    </ol>
+    <p>O Sergio passa a apoiar a transição do MXM nesta fase crítica. A Marlis continua à frente do projeto.</p>
+    <p><strong>Participantes:</strong> Sergio Mendes, Marlis de Melo Silva, Luiz Lima (TI), Luiz Fernando Moura, Nicole Sieiro Pettersen, Felipe Montenegro, Márcia Pimentel Carneiro, Claire e Leandro (Keycorp, consultoria de implantação do Protheus).</p>
+  </div>
+</details>
+
+<details class="sec" id="luiz">
+  <summary><span class="num">02</span><span class="st"><h2>Apontamentos do Luiz Lima (TI)</h2><small>Os riscos que abriram a discussão</small></span><span class="plus" aria-hidden="true"></span></summary>
+  <div class="body">
+    <ul>
+      <li><strong>Uma cópia integral do banco não é possível.</strong> O MXM é um sistema proprietário em nuvem, usado por todos os clientes da MXM, com um banco Oracle compartilhado. O contrato permite usar as telas do sistema, não acessar a base de dados.</li>
+      <li><strong>Mesmo com os dados em mãos, faltaria conhecer a estrutura do sistema.</strong> A MXM pode até exportar os dados em TXT ou planilha, mas a TI não conhece a arquitetura do sistema o bastante para montar relatórios ou BI a partir deles. Nas palavras dele, seria como pedir à Coca-Cola a receita.</li>
+      <li><strong>É preciso se aproximar da MXM.</strong> Encerrar um contrato faz parte da relação entre cliente e fornecedor. Uma conversa direta pode mostrar se a MXM já tem uma solução de exportação.</li>
+      <li><strong>O prazo preocupa:</strong> já é novembro e a virada é em janeiro.</li>
+      <li><strong>Proposta:</strong> virar a chave em janeiro sem romper o contrato, mantendo um mínimo de licenças (por exemplo, 5 Full e 10 a 15 Lite), porque algumas prestações de contas (como a de São Paulo) acontecem anos depois.</li>
+    </ul>
+  </div>
+</details>
+
+<details class="sec" id="contrapontos">
+  <summary><span class="num">03</span><span class="st"><h2>Contrapontos e esclarecimentos</h2><small>Respostas da equipe e da consultoria</small></span><span class="plus" aria-hidden="true"></span></summary>
+  <div class="body">
+    <div class="tbl"><table>
+      <thead><tr><th>Quem</th><th>Ponto</th></tr></thead>
+      <tbody>
+        <tr><td>Nicole</td><td>O prazo de guarda não é de 2 anos: chega a <strong>10 anos</strong>. Isso vale para todos os contratantes (Favelas, Cult, Museu do Amanhã, Jardim Botânico), não só São Paulo. O IDG responde a diligências de anos atrás, como os questionamentos recentes do Tribunal de Contas sobre 2024.</td></tr>
+        <tr><td>Marlis, relatando o Jurídico (Clara)</td><td>A MXM tem <strong>obrigação contratual de entregar o backup</strong> de todos os dados do IDG, de todo o período. Para consultar os documentos pelo próprio sistema, porém, é preciso manter licenças. A orientação do Jurídico é tratar a mudança como <strong>redução de licenças, não como rompimento</strong>.</td></tr>
+        <tr><td>Leandro (Keycorp)</td><td>Na nuvem, o servidor e o gerenciador de banco costumam ser compartilhados, mas o banco de cada cliente geralmente é separado. Se as tabelas forem únicas, há uma chave por cliente. É possível pedir a exportação de tabelas específicas sem acesso às regras do sistema.</td></tr>
+        <tr><td>Leandro (Keycorp)</td><td>Exportar em Excel, CSV ou TXT é <strong>totalmente viável</strong> e <strong>já foi feito</strong>: fornecedores, clientes e produtos do MXM já foram carregados no Protheus dessa forma.</td></tr>
+        <tr><td>Leandro (Keycorp)</td><td>Os arquivos anexados na nuvem da MXM são <strong>propriedade do IDG</strong>. São documentos, não banco de dados, e não deveriam ter restrição contratual.</td></tr>
+        <tr><td>Luiz Fernando</td><td>No levantamento que fez, a redução fica em torno de <strong>30 licenças, todas Full</strong>, separadas por área. O perfil Lite não permite visualizar o sistema de forma ampla.</td></tr>
+        <tr><td>Felipe</td><td>Uma relação mais próxima com a MXM pode acelerar a transição e torná-la mais tranquila.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Por que a MXM não foi procurada antes? Foi uma escolha de estratégia: um fornecedor avisado cedo da saída tende a piorar o atendimento. O tema começou a ser tratado há cerca de dois meses. A MXM soube da troca pelo mercado e, depois de ser adquirida por um grupo internacional, vê o IDG como possível cliente para outros produtos.</p>
+  </div>
+</details>
+
+<details class="sec" id="riscos" open>
+  <summary><span class="num">04</span><span class="st"><h2>Riscos discutidos e medidas de contorno</h2><small>Classificados por probabilidade e impacto</small></span><span class="plus" aria-hidden="true"></span></summary>
+  <div class="body">
+    <div class="risks">
+
+      <details class="risk h"><summary><span class="pill p-high">Alta</span><span class="rt">1. Exportação ainda não confirmada pela MXM</span><span class="plus" aria-hidden="true"></span></summary>
+        <div class="rbody"><p>Ainda não se sabe o que a MXM consegue entregar. A TI acha que o banco não sai; a Keycorp acha que as tabelas saem. A MXM ainda não foi consultada.</p><h4>O que foi dito na reunião</h4><ul><li><b>Luiz Lima (TI), ~00:02:</b> não é possível tirar uma cópia do banco, porque ele é um Oracle compartilhado por todos os clientes da MXM e o contrato só permite usar as telas do sistema. A MXM talvez exporte em TXT ou planilha, mas a TI não conhece a estrutura do sistema para trabalhar esses dados.</li><li><b>Leandro (Keycorp), ~00:13:</b> em nuvem, o banco costuma ser separado por cliente. Exportar em Excel, CSV ou TXT é viável e já foi feito com fornecedores, clientes e produtos. A tabela que liga os anexos aos lançamentos existe no MXM, segundo as pesquisas da Keycorp.</li><li><b>Encaminhamento, ~00:39:</b> perguntar à MXM como será a exportação.</li></ul>
+        <p class="note"><b>Probabilidade média:</b> A Keycorp já tirou cadastros do MXM em Excel, e a própria MXM prevê extração mediante proposta. É provável que algo saia; a dúvida é se inclui a tabela de indexação, os anexos e a tramitação.<br><b>Impacto alto:</b> Sem a exportação não existe Acervo MXM, e o IDG ficaria preso às licenças da MXM pelos 10 anos de guarda.</p>
+        <div class="fix"><h4>Medida de contorno</h4><ul><li>Reunião imediata com a MXM para verificar o que pode ser exportado, em que formato e prazo.</li><li>Levar à reunião técnica a lista de tabelas necessárias, incluindo a de indexação dos anexos.</li><li>Testar a exportação com um exercício fechado antes de reduzir as licenças.</li></ul></div></div></details>
+
+      <details class="risk h"><summary><span class="pill p-high">Alta</span><span class="rt">2. Perda do histórico de tramitação</span><span class="plus" aria-hidden="true"></span></summary>
+        <div class="rbody"><p>O documento pode ser recuperado pelo Google Drive, mas o registro de quem tramitou o processo, quando, o texto digitado e a aprovação fica só no MXM.</p><h4>O que foi dito na reunião</h4><ul><li><b>Marlis, ~00:38:</b> em São Paulo, viu o link do MXM que leva aos documentos guardados no Google Drive.</li><li>Ter o documento, porém, não dá acesso ao histórico dos trâmites: quando o processo tramitou, quem tramitou e qual texto foi digitado.</li><li>Também não se sabe quando ele foi aprovado. Tudo isso fica na base do MXM.</li></ul>
+        <p class="note"><b>Probabilidade média:</b> Nenhuma das soluções discutidas incluiu esse histórico. Ele depende de a MXM guardar os registros de forma exportável e aceitar entregá-los.<br><b>Impacto alto:</b> O histórico de tramitação comprova a regularidade de uma compra em diligências e no Tribunal de Contas, por até 10 anos.</p>
+        <div class="fix"><h4>Medida de contorno</h4><ul><li>Incluir o histórico de tramitação na lista de dados pedidos à MXM.</li><li>Se ele não puder ser exportado, gerar relatórios de tramitação dos processos antes do fim das licenças.</li></ul></div></div></details>
+
+      <details class="risk h"><summary><span class="pill p-high">Alta</span><span class="rt">3. Direito ao backup ainda não formalizado</span><span class="plus" aria-hidden="true"></span></summary>
+        <div class="rbody"><p>O Jurídico entende que a MXM é obrigada a entregar um backup de todos os dados do IDG, mas ainda não se sabe o que entra nele, em que formato e em que prazo.</p><h4>O que foi dito na reunião</h4><ul><li><b>Marlis, relatando a Clara (Jurídico), ~00:10:</b> a MXM tem obrigação contratual de entregar o backup de tudo o que o IDG tem no sistema, de todo o período.</li><li>Para continuar consultando documentos pelo próprio MXM, o IDG precisa manter licenças. A orientação do Jurídico é tratar a saída como redução de licenças, não como rompimento.</li><li><b>Leandro (Keycorp), ~00:14:</b> se isso estiver previsto em contrato e analisado pelo Jurídico, fortalece o argumento do IDG.</li></ul>
+        <p class="note"><b>Probabilidade média:</b> A obrigação foi afirmada, mas a cláusula não foi indicada na reunião. A MXM pode contestar o escopo (por exemplo, excluir os anexos) ou cobrar pela entrega.<br><b>Impacto alto:</b> É o principal argumento para obter os dados sem custo extra e com prazo. Sem ele, a negociação parte do zero.</p>
+        <div class="fix"><h4>Medida de contorno</h4><ul><li>O Jurídico indica a cláusula contratual que sustenta o backup.</li><li>Formalizar com a MXM, em aditivo ou ata, o escopo (dados e anexos), o formato e o prazo de entrega.</li></ul></div></div></details>
+
+      <details class="risk h"><summary><span class="pill p-high">Alta</span><span class="rt">4. Acervo MXM sem escopo, prazo nem orçamento</span><span class="plus" aria-hidden="true"></span></summary>
+        <div class="rbody"><p>O acesso ao histórico por 10 anos depende do Acervo MXM, que ainda não tem escopo, contrato nem orçamento. Se ele atrasar, as licenças da MXM precisam ser prorrogadas.</p><h4>O que foi dito na reunião</h4><ul><li><b>Nicole, ~00:05:</b> o IDG precisa acessar o histórico por até 10 anos, para prestações de contas e diligências. Na troca do Semiflex para o MXM, o IDG ficou sem acesso adequado aos documentos antigos.</li><li><b>Leandro (Keycorp), ~00:16 a 00:22:</b> o MXM só deve ser desligado quando houver no Protheus um Acervo MXM ligando cada lançamento ao seu documento. Ele estima de 6 meses a 1 ano, sem ter conversado ainda com a MXM.</li><li><b>Leandro, ~00:35:</b> a migração de dados está no contrato atual, mas o Acervo MXM ainda precisa de escopo e proposta. <b>Sergio:</b> haverá custo com as licenças e com esse trabalho.</li></ul>
+        <p class="note"><b>Probabilidade alta:</b> Ainda não há escopo, contrato nem orçamento. A estimativa foi feita sem informações da MXM, e a Keycorp estará concentrada na implantação até a virada.<br><b>Impacto médio:</b> O atraso pode ser contornado prorrogando as licenças, mas com custo e mais tempo de dependência da MXM.</p>
+        <div class="fix"><h4>Medida de contorno</h4><ul><li>Contratar escopo, prazo e orçamento do Acervo MXM logo após a reunião técnica com a MXM.</li><li>Vincular o fim das licenças reduzidas à entrega validada do Acervo, e não a uma data fixa.</li></ul></div></div></details>
+
+      <details class="risk h"><summary><span class="pill p-high">Alta</span><span class="rt">5. Regras contábeis indefinidas na virada</span><span class="plus" aria-hidden="true"></span></summary>
+        <div class="rbody"><p>As regras que tiram do solicitante a escolha da conta contábil e que classificam ativos e obras ainda estão em definição, a poucas semanas da virada.</p><h4>O que foi dito na reunião</h4><ul><li><b>Claire, ~00:48 a 01:24:</b> hoje, antes de registrar uma requisição no MXM, a área de projetos consulta Contabilidade, Orçamento e Recursos Incentivados por uma planilha paralela, porque o solicitante não sabe qual conta usar. No primeiro treinamento, ela não viu essa rotina mudar no Protheus.</li><li>Ela citou também ativos montados a partir de várias peças, que geram reclassificações e reuniões, e obras pagas por medição, que a Contabilidade ajustava manualmente todo mês.</li><li><b>Leandro (Keycorp), ~00:50:</b> as regras estão sendo definidas com a Contabilidade (Lucas, Ana Maia e Henrique), possivelmente a partir da natureza financeira. A classificação de ativos e benfeitorias passa a ser feita pela classificação fiscal e contábil (TES).</li><li><b>Treinamentos:</b> terminam em 25/11. O encontro com todo o IDG sobre o novo modelo só acontece depois deles.</li></ul>
+        <p class="note"><b>Probabilidade alta:</b> As regras ainda estão em conversa com a Contabilidade, os treinamentos terminam em 25/11 e a virada é em cerca de sete semanas.<br><b>Impacto médio:</b> O sistema funciona, mas com planilhas paralelas, reclassificações e retrabalho, o que reduz a adesão ao Protheus desde o início.</p>
+        <div class="fix"><h4>Medida de contorno</h4><ul><li>Fechar com a Contabilidade o de-para de contas e a parametrização das TES antes da virada.</li><li>Tratar o relatório da Claire durante a operação assistida.</li><li>Antecipar o encontro com o IDG sobre o novo modelo contábil e orçamentário.</li></ul></div></div></details>
+
+      <details class="risk m"><summary><span class="pill p-mid">Média</span><span class="rt">6. Referências perdidas na migração de compras</span><span class="plus" aria-hidden="true"></span></summary>
+        <div class="rbody"><p>Quando o histórico de compras migrar para o Protheus, os pedidos antigos vão apontar para fornecedores que foram unificados no saneamento (de mais de 6.000 para cerca de 2.000).</p><h4>O que foi dito na reunião</h4><ul><li><b>Marlis, ~00:09:</b> trazer compras na virada seria inviável, porque geraria tabelas sem continuidade no Protheus.</li><li><b>Leandro (Keycorp), ~00:28:</b> a base de fornecedores do MXM tinha mais de 6.000 cadastros, com o mesmo fornecedor repetido quatro ou cinco vezes, e foi saneada para cerca de 2.000. Trazer todos os pedidos faria perder parte dessas referências, e o mesmo acontece em outros cadastros.</li><li><b>Planejamento:</b> na virada, só financeiro e contabilidade vão para o Protheus. O histórico de compras migra cerca de seis meses depois.</li></ul>
+        <p class="note"><b>Probabilidade média:</b> O saneamento já foi feito e a Keycorp conhece o problema. O risco depende de a correspondência entre fornecedor antigo e novo ter sido guardada.<br><b>Impacto médio:</b> Pedidos ligados ao fornecedor errado dificultam consultas e rastreamento, mas não impedem a operação.</p>
+        <div class="fix"><h4>Medida de contorno</h4><ul><li>Guardar a tabela de correspondência entre fornecedor antigo e fornecedor saneado.</li><li>Validar uma amostra de pedidos migrados contra o MXM antes de desligá-lo.</li></ul></div></div></details>
+
+      <details class="risk m"><summary><span class="pill p-mid">Média</span><span class="rt">7. Ir à MXM sem o número de licenças definido</span><span class="plus" aria-hidden="true"></span></summary>
+        <div class="rbody"><p>A MXM vai perguntar de quanto será a redução, e o IDG ainda não sabe ao certo quantas licenças tem hoje nem quantas, e de que tipo, vai manter.</p><h4>O que foi dito na reunião</h4><ul><li><b>Luiz Lima (TI), ~00:04:</b> sugeriu manter algo como 5 licenças Full e 10 a 15 Lite.</li><li><b>Luiz Fernando, ~00:33:</b> pelo levantamento dele, seriam cerca de 30 licenças, todas Full, porque o perfil Lite não permite visualizar o sistema de forma ampla.</li><li><b>Total atual:</b> foram citados 186 e 172. A divisão entre Full e Lite precisa ser levantada.</li><li><b>Sala, ~00:32:</b> na primeira reunião, a MXM vai querer saber quanto deixa de faturar, então o IDG precisa chegar com o número.</li></ul>
+        <p class="note"><b>Probabilidade média:</b> Há um levantamento pronto e uma semana até a reunião. Falta consolidar os números e escolher entre as duas propostas.<br><b>Impacto médio:</b> Negociar sem um número enfraquece a posição do IDG e pode fixar um perfil que não serve para consulta, ou um custo maior.</p>
+        <div class="fix"><h4>Medida de contorno</h4><ul><li>Consolidar o levantamento do Luiz Fernando com a divisão atual entre Full e Lite.</li><li>Decidir o perfil e a quantidade antes da reunião com a MXM.</li></ul></div></div></details>
+
+      <details class="risk m"><summary><span class="pill p-mid">Média</span><span class="rt">8. Colaboração da MXM na saída</span><span class="plus" aria-hidden="true"></span></summary>
+        <div class="rbody"><p>A MXM soube da troca pelo mercado, e um fornecedor que perde receita tende a atender pior justamente quando o IDG mais precisa dele.</p><h4>O que foi dito na reunião</h4><ul><li><b>Marlis, ~00:07:</b> a MXM soube pelo mercado que o IDG estava trocando de sistema. Depois de ser comprada por um grupo internacional, vê o IDG como possível cliente para outros produtos.</li><li><b>Marlis, ~00:24:</b> o IDG não avisou antes por estratégia: quando o fornecedor sabe que vai perder o cliente, o atendimento costuma piorar.</li><li><b>Felipe, ~00:23:</b> uma relação mais próxima com a MXM pode acelerar a transição.</li></ul>
+        <p class="note"><b>Probabilidade média:</b> A MXM já sabe da troca, mas tem interesse comercial em continuar com o IDG, que seguirá cliente com licenças reduzidas.<br><b>Impacto médio:</b> A falta de colaboração atrasaria a exportação e aumentaria os custos. O contrato e a orientação do Jurídico dão alguma proteção.</p>
+        <div class="fix"><h4>Medida de contorno</h4><ul><li>Primeira conversa de relacionamento com o Thiago, sem detalhes técnicos.</li><li>Tratar a saída como redução de licenças, conforme orientação do Jurídico.</li><li>Usar o interesse da MXM em outros produtos como ponto de negociação.</li></ul></div></div></details>
+
+      <details class="risk m"><summary><span class="pill p-mid">Média</span><span class="rt">9. Pouca visibilidade do cronograma</span><span class="plus" aria-hidden="true"></span></summary>
+        <div class="rbody"><p>O cronograma da implantação, pedido pelo Diretor-Geral, não pôde ser apresentado na reunião: o da Keycorp muda quase toda semana e não há acompanhamento interno.</p><h4>O que foi dito na reunião</h4><ul><li><b>Sergio, ~00:40:</b> o Diretor-Geral pediu o cronograma da migração, mas não havia um documento interno de acompanhamento para mostrar.</li><li><b>Leandro (Keycorp), ~00:41:</b> o cronograma existe, mas é atualizado quase toda semana. Ele se comprometeu a enviá-lo atualizado na segunda-feira e a preparar uma apresentação para o COMEX.</li><li><b>Sala, ~00:44:</b> se o sistema não entrar em 1º de janeiro, o IDG fica sem sistema.</li></ul>
+        <p class="note"><b>Probabilidade média:</b> O cronograma existe na Keycorp, mas muda quase toda semana. O acompanhamento semanal pelo comitê começa agora.<br><b>Impacto médio:</b> Problemas apareceriam tarde, com menos tempo para reagir antes da virada.</p>
+        <div class="fix"><h4>Medida de contorno</h4><ul><li>Receber o cronograma atualizado da Keycorp na segunda-feira, 16/11.</li><li>Acompanhar marcos e gargalos toda quinta no comitê.</li></ul></div></div></details>
+
+      <details class="risk l"><summary><span class="pill p-low">Baixa</span><span class="rt">10. Preço unitário maior com a redução</span><span class="plus" aria-hidden="true"></span></summary>
+        <div class="rbody"><p>Com menos licenças, o IDG pode perder o desconto por volume e pagar mais por licença, embora o gasto total caia.</p><h4>O que foi dito na reunião</h4><ul><li><b>Leandro (Keycorp), ~00:33:</b> o preço da MXM parece cair conforme aumenta o número de licenças. Reduzir o volume pode encarecer cada licença. A pergunta já está na lista que ele vai levar à MXM.</li></ul>
+        <p class="note"><b>Probabilidade média:</b> A Keycorp suspeita de desconto por volume, mas isso não foi confirmado com a MXM.<br><b>Impacto baixo:</b> Mesmo com preço unitário maior, o gasto total cai bastante, porque o número de licenças diminui muito.</p>
+        <div class="fix"><h4>Medida de contorno</h4><ul><li>Pedir à MXM a tabela de preços por faixa de quantidade.</li><li>Incluir esse valor no custo da fase de transição.</li></ul></div></div></details>
+
+    </div>
+  </div>
+</details>
+
+<details class="sec" id="claire">
+  <summary><span class="num">05</span><span class="st"><h2>Ponderações da Claire</h2><small>Visão de quem opera o sistema no dia a dia</small></span><span class="plus" aria-hidden="true"></span></summary>
+  <div class="body">
+    <p>A Claire usa o MXM com profundidade, treina outras equipes (inclusive em Belém) e fez o primeiro treinamento do Protheus na véspera. A preocupação dela é que, pelo que viu até agora, a rotina da área de projetos não muda com o sistema novo.</p>
+    <h3>Como a área de projetos trabalha hoje</h3>
+    <ol>
+      <li>O produtor preenche um formulário (Google Forms) e indica a pasta do Drive com os documentos.</li>
+      <li>A equipe confere os documentos conforme a política de compras (por exemplo, o documento exigido acima de R$ 150 mil).</li>
+      <li>Uma planilha compartilhada vai para Contabilidade (grupo de pagamento e cartão CNPJ), Orçamento (fonte pagadora, como FINEP no MAZ, descritivo e saldo) e Recursos Incentivados.</li>
+      <li>Só então a requisição é registrada no MXM.</li>
+    </ol>
+    <h3>Pontos levantados</h3>
+    <ul>
+      <li><strong>A conta orçamentária é genérica demais.</strong> "Equipamento de tecnologia" cobre tanto um painel de LED (ativo) quanto um mouse (consumo). Por isso o solicitante precisa consultar a Contabilidade.</li>
+      <li><strong>Ativos montados a partir de várias peças.</strong> Itens baratos que, juntos, formam um ativo chegam em entregas e notas separadas. Isso gerou retrabalho, reclassificações e muitas reuniões com Almoxarifado e Contabilidade nos últimos dois anos.</li>
+      <li><strong>Obras e benfeitorias pagas por medição</strong> não se encaixavam no MXM. A Contabilidade ajustava manualmente, e ela precisava lembrar pessoalmente, todo mês, os casos que exigiam ajuste.</li>
+    </ul>
+    <h3>Respostas na reunião</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Quem</th><th>Resposta</th></tr></thead>
+      <tbody>
+        <tr><td>Leandro (Keycorp)</td><td>O plano de contas ficou mais detalhado e serve também como plano orçamentário. A Keycorp está definindo com a Contabilidade (Lucas, Ana Maia e Henrique) as regras para que a conta venha automaticamente, possivelmente pela natureza financeira. O solicitante poderá consultar o saldo e pedir remanejamento ou suplementação dentro do próprio sistema. Classificar algo como ativo ou benfeitoria passa a ser papel da classificação fiscal e contábil (TES), e não do solicitante. Conclusão dele: "sistemicamente, 100% viável".</td></tr>
+        <tr><td>Luiz Fernando</td><td>Os itens foram saneados e parametrizados. As obras passam a ser geridas como contrato, com medições e pagamentos provisionados, o que resolve a relação com o Almoxarifado nesses casos.</td></tr>
+        <tr><td>Nicole</td><td>A planilha paralela não faz parte do fluxo oficial, mas o problema é real e vale para todo o IDG: o solicitante deve saber o que quer comprar, não a conta contábil. Essa amarração cabe ao sistema.</td></tr>
+        <tr><td>Sergio</td><td>A área de projetos quer fazer tudo pelo Protheus, e a transcrição da reunião servirá para garantir que esses pontos sejam tratados.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Encaminhamento: a Claire conclui o treinamento (até 25/11) e reúne em um relatório o que ainda pode melhorar. Os ajustes podem ser feitos durante o treinamento e a operação assistida. Depois das capacitações, haverá um encontro com todo o IDG sobre as mudanças no modelo contábil e orçamentário.</p>
+  </div>
+</details>
+
+<details class="sec" id="encaminhamentos">
+  <summary><span class="num">06</span><span class="st"><h2>Decisões e encaminhamentos</h2><small>O que ficou definido</small></span><span class="plus" aria-hidden="true"></span></summary>
+  <div class="body">
+    <div class="tbl"><table>
+      <thead><tr><th>Encaminhamento</th><th>Responsável</th><th>Quando</th></tr></thead>
+      <tbody>
+        <tr><td>Comitê de transição semanal, dedicado só à migração</td><td>Sergio · Marlis</td><td>Quintas, 11h</td></tr>
+        <tr><td>Novo horário para o GT de IA e ajuste dos convites</td><td>Luiz Fernando</td><td>A definir</td></tr>
+        <tr><td>Reunião de relacionamento com a MXM (Thiago)</td><td>A definir</td><td>Semana de 16/11</td></tr>
+        <tr><td>Reunião técnica com a MXM: exportação, indexação e histórico de tramitação</td><td>Luiz Lima · Luiz Fernando · Felipe · Leandro</td><td>Depois da reunião de relacionamento</td></tr>
+        <tr><td>Número de licenças a manter, com a divisão atual entre Full e Lite</td><td>Luiz Fernando · Nicole</td><td>Antes da reunião com a MXM</td></tr>
+        <tr><td>Cronograma da migração atualizado</td><td>Leandro</td><td>Segunda-feira, 16/11</td></tr>
+        <tr><td>Apresentação do cronograma e do plano de transição ao COMEX</td><td>Leandro</td><td>A definir</td></tr>
+        <tr><td>Escopo e proposta do Acervo MXM</td><td>Leandro</td><td>Depois da reunião técnica</td></tr>
+        <tr><td>Relatório da Claire com dúvidas e melhorias</td><td>Claire</td><td>Depois do treinamento (até 25/11)</td></tr>
+        <tr><td>Encontro com todo o IDG sobre o novo modelo contábil e orçamentário</td><td>Luiz Fernando · Leandro</td><td>Depois das capacitações</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</details>
+
+<details class="sec" id="pendencias">
+  <summary><span class="num">07</span><span class="st"><h2>Questões em aberto</h2><small>Ficaram sem resposta na reunião</small></span><span class="plus" aria-hidden="true"></span></summary>
+  <div class="body">
+    <ul>
+      <li>O banco do IDG na MXM é separado ou compartilhado em tabelas únicas? A resposta muda o esforço da exportação.</li>
+      <li>Como a MXM entregará o backup que o Jurídico considera obrigação contratual: em que formato, em que prazo e com quais anexos?</li>
+      <li>Quantas das licenças atuais são Full e quantas são Lite? O total também precisa ser confirmado (186 ou 172).</li>
+      <li>Qual será o custo mensal com a licença reduzida, considerando que o preço unitário depende do volume?</li>
+      <li>Quanto custa o Acervo MXM, e qual o prazo final depois da conversa com a MXM?</li>
+    </ul>
+  </div>
+</details>
+
+</div>
+
+<footer>Elaborado a partir da transcrição automática da reunião de 12/11/2026. As falas registradas como "Sala 02" foram atribuídas pelo contexto da conversa.</footer>
+</div>
+</div>
+<div class="view" id="contrato" hidden>
+<section class="ct" aria-label="Contrato MXM">
+  <div class="map-head">
+    <span class="eyebrow">IDG · Contrato nº 2021-07</span>
+    <h1>Histórico do contrato com a MXM</h1>
+    <p class="lede">Licenças, valores e cláusulas do contrato de implantação, manutenção e licença do MXM-WebManager, de 2021 até o 8º termo aditivo.</p>
+  </div>
+  <div class="facts">
+    <div class="fact"><b>30/06/2027</b><span>fim da vigência atual</span></div>
+    <div class="fact"><b>R$ 45.811,51</b><span>por mês (R$ 549,7 mil no período)</span></div>
+    <div class="fact"><b>70 + 101 + 1</b><span>Full, Lite e integração (172 no total)</span></div>
+    <div class="fact"><b>8</b><span>termos aditivos desde 2021</span></div>
+  </div>
+  <div class="charts">
+    <div class="chart"><h2>Licenças contratadas</h2>
+      <div class="legend"><span><i class="sw sb-f"></i>Full</span><span><i class="sw sb-l"></i>Lite</span><span><i class="sw sb-i"></i>Integração</span></div>
+      <div class="br"><div class="br-lab"><b>Jul/2021</b><span>Contrato original</span></div><div class="br-bar"><span class="sb sb-f" style="width:19.2%">33</span><span class="sb sb-l" style="width:32.0%">55</span></div><div class="br-val">88</div></div><div class="br"><div class="br-lab"><b>Jun/2024</b><span>4º aditivo</span></div><div class="br-bar"><span class="sb sb-f" style="width:30.8%">53</span><span class="sb sb-l" style="width:44.8%">77</span></div><div class="br-val">130</div></div><div class="br"><div class="br-lab"><b>Jul/2025</b><span>5º aditivo</span></div><div class="br-bar"><span class="sb sb-f" style="width:39.5%">68</span><span class="sb sb-l" style="width:54.1%">93</span></div><div class="br-val">161</div></div><div class="br"><div class="br-lab"><b>Jul/2026</b><span>8º aditivo (atual)</span></div><div class="br-bar"><span class="sb sb-f" style="width:40.7%">70</span><span class="sb sb-l" style="width:58.7%">101</span><span class="sb sb-i" style="width:2.5%" title="Usuário de integração"></span></div><div class="br-val">172</div></div>
+      <p class="note">O 2º e o 3º aditivos não informam a quantidade de licenças. O 7º acrescentou 1 Lite. O total atual de 172 confirma um dos números citados na reunião.</p>
+    </div>
+    <div class="chart"><h2>Valor mensal bruto</h2>
+      <div class="br"><div class="br-lab"><b>Mar/2022</b><span>Contrato original</span></div><div class="br-bar"><span class="sb sb-v" style="width:48.0%"></span></div><div class="br-val">R$ 21.992,34</div></div><div class="br"><div class="br-lab"><b>Mai/2023</b><span>2º aditivo</span></div><div class="br-bar"><span class="sb sb-v" style="width:91.3%"></span></div><div class="br-val">R$ 41.826,69</div></div><div class="br"><div class="br-lab"><b>Jan/2024</b><span>3º aditivo</span></div><div class="br-bar"><span class="sb sb-v" style="width:94.9%"></span></div><div class="br-val">R$ 43.495,57</div></div><div class="br"><div class="br-lab"><b>Jun/2024</b><span>4º aditivo</span></div><div class="br-bar"><span class="sb sb-v" style="width:69.6%"></span></div><div class="br-val">R$ 31.873,32<span class="br-note">líquido R$ 21.285,63 após compensação</span></div></div><div class="br"><div class="br-lab"><b>Jul/2025</b><span>5º aditivo</span></div><div class="br-bar"><span class="sb sb-v" style="width:68.1%"></span></div><div class="br-val">R$ 31.213,65</div></div><div class="br"><div class="br-lab"><b>Out/2025</b><span>7º aditivo</span></div><div class="br-bar"><span class="sb sb-v" style="width:72.7%"></span></div><div class="br-val">R$ 33.296,22</div></div><div class="br"><div class="br-lab"><b>Jul/2026</b><span>8º aditivo (atual)</span></div><div class="br-bar"><span class="sb sb-v" style="width:100.0%"></span></div><div class="br-val">R$ 45.811,51</div></div>
+      <p class="note">De jun/2024 a jun/2026, a fatura foi reduzida em R$ 10.587,69 por mês para compensar valores pagos a mais. O aumento em jul/2026 reflete o fim dessa compensação e o reajuste anual.</p>
+    </div>
+  </div>
+  <div class="band"><div class="band-title">Linha do tempo</div>
+    <p class="hint">Toque no <strong>+</strong> para ver o detalhe de cada instrumento.</p>
+    <div class="tline"><details class="ev"><summary><span class="ev-d">08/07/2021</span><span class="ev-t"><b>Contrato nº 2021-07</b><small>Implantação, manutenção e licença do MXM-WebManager</small></span><span class="plus" aria-hidden="true"></span></summary><div class="ev-b"><ul><li>Vigência inicial de 08/07/2021 a 08/03/2022, para a implantação.</li><li>Implantação: R$ 240.056,97, em 8 parcelas de R$ 30.007,12.</li><li>Manutenção e licença: R$ 21.992,34 por mês a partir de 08/03/2022.</li><li><b>88 licenças:</b> 33 Full e 55 Lite (aprovadores).</li><li>Nuvem AWS em ambiente semi-dedicado, gerenciada pela MXM.</li><li>Rateio entre Museu do Amanhã, Fundo da Mata Atlântica, Institucional e Paço do Frevo.</li><li>Pela proposta comercial, acesso aos backups e ao banco de produção não estão incluídos (itens 1.3 h e j).</li></ul></div></details><details class="ev"><summary><span class="ev-d">22/08/2022</span><span class="ev-t"><b>1º termo aditivo</b><small>Documento não consta da pasta</small></span><span class="plus" aria-hidden="true"></span></summary><div class="ev-b"><ul><li>Citado nos aditivos seguintes, mas o arquivo não está na pasta analisada.</li></ul></div></details><details class="ev"><summary><span class="ev-d">01/05/2023</span><span class="ev-t"><b>2º termo aditivo</b><small>Novo valor e inclusão do Museu do Meio Ambiente</small></span><span class="plus" aria-hidden="true"></span></summary><div class="ev-b"><ul><li>Valor mensal passa a <b>R$ 41.826,69</b>, sem reajuste até 30/06/2023 e depois corrigido pelo IPCA.</li><li>Serviços avulsos: implantação de banco de dados (R$ 2.254,19) e novo relatório de orçamento (R$ 14.931,58).</li><li>Inclui a filial do Museu do Meio Ambiente e anexa o SLA padrão de suporte da MXM.</li><li>A MXM passa a ser sociedade limitada, com sede em Niterói.</li></ul></div></details><details class="ev"><summary><span class="ev-d">01/01/2024</span><span class="ev-t"><b>3º termo aditivo</b><small>Reajuste pelo IPCA</small></span><span class="plus" aria-hidden="true"></span></summary><div class="ev-b"><ul><li>Valor mensal passa a <b>R$ 43.495,57</b> (R$ 521.946,84 em 12 meses).</li><li>Rateio entre Museu do Amanhã, Paço do Frevo, Fundo da Mata Atlântica, Museu das Favelas e Museu do Meio Ambiente.</li></ul></div></details><details class="ev"><summary><span class="ev-d">01/06/2024</span><span class="ev-t"><b>4º termo aditivo</b><small>Renegociação de licenças e devolução de valores pagos a mais</small></span><span class="plus" aria-hidden="true"></span></summary><div class="ev-b"><ul><li>A MXM reconhece dever ao IDG <b>R$ 254.104,56</b>, por pagamentos a maior entre jul/2022 e mai/2024 e mensalidades indevidas entre ago/2021 e mar/2022.</li><li>A dívida é compensada em 24 parcelas de R$ 10.587,69, a partir de jun/2024.</li><li><b>130 licenças:</b> 53 Full e 77 Lite. Valor bruto de R$ 31.873,32 por mês; líquido de R$ 21.285,63 durante a compensação.</li><li>O IDG pode alterar a quantidade e o tipo de licenças a qualquer momento, com preço unitário pela tabela de descontos progressivos.</li><li>Vigência prorrogada até 30/06/2026.</li><li>Novas obrigações da MXM: módulo de Vendas sem custo, reuniões quinzenais e prioridade nos chamados pendentes.</li></ul></div></details><details class="ev"><summary><span class="ev-d">01/07/2025</span><span class="ev-t"><b>5º termo aditivo</b><small>Reajuste e mudança para a MXM Jettax</small></span><span class="plus" aria-hidden="true"></span></summary><div class="ev-b"><ul><li>Reajuste de 5,23% (IPCA). Valor mensal de <b>R$ 31.213,65</b> (R$ 374.563,80 em 12 meses).</li><li><b>161 licenças</b> na proposta anexa: 68 Full e 93 Lite.</li><li>Ambiente MXM Cloud Premium: servidores dedicados e banco Oracle Autonomous compartilhado com outros clientes.</li><li>A contratada passa a ser a MXM Jettax Soluções e Serviços Ltda.</li></ul></div></details><details class="ev"><summary><span class="ev-d">01/07/2025</span><span class="ev-t"><b>6º termo aditivo</b><small>Inclusão de filial em São Paulo</small></span><span class="plus" aria-hidden="true"></span></summary><div class="ev-b"><ul><li>Inclui a filial do Bom Retiro (São Paulo), com efeito retroativo a 01/07/2025.</li></ul></div></details><details class="ev"><summary><span class="ev-d">01/10/2025</span><span class="ev-t"><b>7º termo aditivo</b><small>Nova licença, MAZ e cláusulas de responsabilidade</small></span><span class="plus" aria-hidden="true"></span></summary><div class="ev-b"><ul><li>Inclui a filial de Belém (Museu das Amazônias).</li><li>Acrescenta 1 licença Lite (R$ 173,55 por mês).</li><li>Valor mensal de <b>R$ 33.296,22</b> (R$ 399.554,65 em 12 meses).</li><li>A responsabilidade da MXM passa a ser limitada a danos diretos, até o valor das mensalidades dos 12 meses anteriores.</li><li>Nova cláusula de propriedade intelectual: o IDG não adquire direitos sobre o software nem sobre bases de dados relacionadas a ele.</li><li>Assinado em 19/03/2026, com efeito retroativo a 01/10/2025.</li></ul></div></details><details class="ev"><summary><span class="ev-d">12/06/2026</span><span class="ev-t"><b>Contrato de consultoria nº 2026.014</b><small>Integração do PDVNET (loja) com o MXM</small></span><span class="plus" aria-hidden="true"></span></summary><div class="ev-b"><ul><li>Contrato avulso de 30 dias, no valor de R$ 4.525,45.</li><li>Consultoria a R$ 209,70 por hora, passando a R$ 218,91 (sem impostos) depois de 30/06/2026.</li><li>Registra que as APIs do MXM só recebem dados e que o IDG tem 1 usuário de integração.</li></ul></div></details><details class="ev"><summary><span class="ev-d">01/07/2026</span><span class="ev-t"><b>8º termo aditivo (vigente)</b><small>Renovação até 30/06/2027</small></span><span class="plus" aria-hidden="true"></span></summary><div class="ev-b"><ul><li>Vigência de 01/07/2026 a 30/06/2027.</li><li>Valor mensal de <b>R$ 45.811,51</b> (R$ 549.738,12 em 12 meses), com reajuste de 4,3917% (IPCA) e fim do desconto da compensação.</li><li><b>172 licenças:</b> 70 Full, 101 Lite e 1 usuário de integração.</li><li>Rateio: Museu do Amanhã 32%, CultSP 25%, MAZ 22%, Favelas 11%, Paço do Frevo 6%, Jardim Botânico 4%, FMA 0%.</li></ul></div></details></div>
+  </div>
+  <div class="band"><div class="band-title">Cláusulas que importam para a saída</div>
+    <div class="cls"><div class="cl"><h3>Saída sem multa</h3><p>Qualquer parte pode encerrar o contrato com 30 dias de aviso, sem ônus. Na saída, a MXM encerra os serviços no prazo que o IDG conceder.</p><span>Cláusula 8</span></div><div class="cl"><h3>Licença vinculada ao pagamento</h3><p>O direito de uso vale enquanto a manutenção mensal estiver sendo paga. Encerrado o contrato, o acesso ao sistema acaba.</p><span>Cl. 1.1.1 e Anexo I</span></div><div class="cl"><h3>Redução de licenças a qualquer momento</h3><p>O IDG pode alterar a quantidade e o tipo de licenças quando precisar. O preço unitário segue uma tabela de descontos progressivos.</p><span>4º aditivo, item 4.2</span></div><div class="cl"><h3>Backup e banco fora do escopo</h3><p>O acesso aos backups diários e ao banco de produção não está incluído e depende de nova proposta comercial.</p><span>Proposta 2021, itens 1.3 h e j</span></div><div class="cl"><h3>Devolução de dados</h3><p>Não foi encontrada cláusula sobre a entrega dos dados do IDG no encerramento.</p><span>Contrato e aditivos 2 a 8</span></div><div class="cl"><h3>Responsabilidade limitada</h3><p>Danos causados pela MXM são cobertos só até o valor das mensalidades dos 12 meses anteriores.</p><span>7º aditivo, item 4.1.15</span></div><div class="cl"><h3>Propriedade intelectual</h3><p>O IDG não adquire direitos sobre o software nem sobre bases de dados relacionadas a ele.</p><span>7º aditivo, cláusula 21</span></div><div class="cl"><h3>Confidencialidade</h3><p>A MXM deve manter sigilo sobre os dados do IDG por 5 anos após o fim do contrato.</p><span>Cláusula 10</span></div></div>
+  </div>
+  <p class="map-foot">Fonte: contrato nº 2021-07, proposta comercial de 2021, termos aditivos 2 a 8 e contrato de consultoria nº 2026.014, na pasta compartilhada do Drive. O 1º termo aditivo não estava na pasta.</p>
+</section>
+</div>
+<script>
+(function(){
+  var views={mapa:document.getElementById('mapa'),relatorio:document.getElementById('relatorio'),contrato:document.getElementById('contrato')};
+  var tabs={mapa:document.getElementById('tab-mapa'),relatorio:document.getElementById('tab-relatorio'),contrato:document.getElementById('tab-contrato')};
+  function setHash(h){try{history.replaceState(null,'','#'+h);}catch(e){}}
+  function show(name){
+    for(var k in views){ views[k].hidden=(k!==name); tabs[k].setAttribute('aria-selected',k===name?'true':'false'); }
+  }
+  tabs.mapa.addEventListener('click',function(){show('mapa');setHash('mapa');window.scrollTo(0,0);});
+  tabs.relatorio.addEventListener('click',function(){show('relatorio');setHash('relatorio');window.scrollTo(0,0);});
+  tabs.contrato.addEventListener('click',function(){show('contrato');setHash('contrato');window.scrollTo(0,0);});
+
+  var btn=document.getElementById('toggleAll');
+  var all=function(){return views.relatorio.querySelectorAll('details');};
+  function sync(){
+    var list=all(), open=true;
+    for(var i=0;i<list.length;i++){ if(!list[i].open){open=false;break;} }
+    btn.textContent=open?'Fechar tudo':'Abrir tudo';
+    btn.setAttribute('aria-pressed',open?'true':'false');
+  }
+  btn.addEventListener('click',function(){
+    var list=all(), anyClosed=false;
+    for(var i=0;i<list.length;i++){ if(!list[i].open){anyClosed=true;break;} }
+    for(var j=0;j<list.length;j++){ list[j].open=anyClosed; }
+    sync();
+  });
+  document.addEventListener('toggle',sync,true);
+  function route(){
+    var id=location.hash.slice(1);
+    if(id==='relatorio'){show('relatorio');return;}
+    if(id==='contrato'){show('contrato');return;}
+    var el=id?document.getElementById(id):null;
+    if(el && el.tagName==='DETAILS' && views.relatorio.contains(el)){ show('relatorio'); el.open=true; el.scrollIntoView({block:'start'}); return; }
+    show('mapa');
+  }
+  window.addEventListener('hashchange',route);
+  route(); sync();
+})();
+</script>
+</body>
+</html>
